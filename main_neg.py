@@ -47,6 +47,20 @@ if __name__ == "__main__":
     dataset["e1rel_e2"] = json.load(open(data_dir["e1rel_e2" + tail]))
     print("loading ent2id ... ...")
     dataset["ent2id"] = json.load(open(data_dir["ent2ids"]))
+    print("loading id2ent ... ...")
+    dataset["id2ent"] = {value:key for key,value in dataset["ent2id"].items()}
+    print("loading rel2nn ... ...")
+    dataset["rel2nn"] = json.load(open(data_dir["rel2nn"]))
+    print("loading rel2dom_t ... ...")
+    dataset["rel2dom_t"] = json.load(open(data_dir["rel2dom_t"]))
+    print("loading ent2dom ... ...")
+    dataset["ent2dom"] = json.load(open(data_dir["ent_dom"]))
+    print("loading dom2ent ... ...")
+    dataset["dom2ent"] = json.load(open(data_dir["dom_ent"]))
+    print("loading task_id2rel ... ...")
+    dataset["task_id2rel"] = json.load(open(data_dir["task_id2rel"]))
+    print("loading task_rel2id ... ...")
+    dataset["task_rel2id"] = json.load(open(data_dir["task_rel2id"]))
 
     if params["data_form"] in ["Pre-Train","In-Train"]:
         print("loading embedding ... ...")
