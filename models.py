@@ -92,7 +92,7 @@ class MetaP(nn.Module):
         self.embedding = Embedding(dataset, parameter)
         self.device = parameter["device"]
         self.few = parameter["few"]
-        self.rum = parameter["rum"]
+        self.rum = True
         self.vbm = parameter["vbm"]
         self.input_channels = 2 if self.rum else 1
         self.aggregator = parameter["aggregator"]
