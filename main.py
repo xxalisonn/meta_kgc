@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     if params["data_form"] in ["Pre-Train","In-Train"]:
         print("loading embedding ... ...")
-        dataset["ent2emb"] = np.load(data_dir["ent2vec"])
+        dataset["ent2emb"] = np.loadtxt('./NELL/ent2vec')
 
     print("----------------------------")
 
