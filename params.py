@@ -73,7 +73,6 @@ def get_params():
 
     return params
 
-
 data_dir = {
     "train_tasks_in_train": "/train_tasks_in_train.json",
     "train_tasks": "/train_tasks.json",
@@ -85,4 +84,11 @@ data_dir = {
     "e1rel_e2": "/e1rel_e2.json",
     "ent2ids": "/ent2ids",
     "ent2vec": "/ent2vec.npy",
+    "ent_dom": "/ent_dom.json",
+    "dom_ent" : "/dom_ent.json",
+    "rel2nn": "/rel2nn.json",
+    "rel2dom_h":"/rel2dom_h_id.json",
+    "rel2dom_t":"/rel2dom_t_id.json",
+    "task_rel2id":'/task_rel2id.json',
+    "task_id2rel":'/task_id2rel.json'
 }
