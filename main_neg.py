@@ -1,6 +1,6 @@
 from trainer import *
 from params import *
-from data_loader import *
+from data_loader_neg import *
 import json
 
 BASE_DIR = os.path.dirname(
