@@ -90,5 +90,6 @@ data_dir = {
     "rel2dom_h":"/rel2dom_h_id.json",
     "rel2dom_t":"/rel2dom_t_id.json",
     "task_rel2id":'/task_rel2id.json',
-    "task_id2rel":'/task_id2rel.json'
+    "task_id2rel":'/task_id2rel.json',
+    "task_aug_dic":'/task_aug_dic.json'
 }
