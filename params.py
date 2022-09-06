@@ -16,6 +16,7 @@ def get_params():
     args.add_argument("-seed", "--seed", default=None, type=int)
     args.add_argument("-few", "--few", default=1, type=int)
     args.add_argument("-nq", "--num_query", default=3, type=int)
+    args.add_argument("-amn","--aug_max_num",default=30, type=int)
     args.add_argument(
         "-metric",
         "--metric",
