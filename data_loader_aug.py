@@ -11,6 +11,7 @@ class DataLoader(object):
         self.all_rels = sorted(list(self.tasks.keys()))
         self.num_rels = len(self.all_rels)
         self.few = parameter["few"]
+        self.max_num = parameter["aug_max_num"]
         self.bs = parameter["batch_size"]
         self.nq = parameter["num_query"]
         self.task_aug = dataset["task_aug_dic"]
@@ -65,7 +66,7 @@ class DataLoader(object):
         curr_tasks_idx = np.random.choice(curr_tasks_idx, self.few + self.nq)
         # support集大小为 few
         support_triples = [curr_tasks[i] for i in curr_tasks_idx[: self.few]]
-        support_triples = self.get_aug_support(support_triples, curr_rel,30)
+        support_triples = self.get_aug_support(support_triples, curr_rel,self.max_num)
         # query集大小为 num_query
         query_triples = [curr_tasks[i] for i in curr_tasks_idx[self.few :]]
 
@@ -127,7 +128,7 @@ class DataLoader(object):
 
         # get support triples
         support_triples = curr_task[: self.few]
-        support_triples = self.get_aug_support(support_triples, curr_rel,30)
+        support_triples = self.get_aug_support(support_triples, curr_rel,self.max_num)
 
         # construct support negative
         support_negative_triples = []
@@ -180,7 +181,7 @@ class DataLoader(object):
 
         # get support triples
         support_triples = curr_task[: self.few]
-        support_triples = self.get_aug_support(support_triples, curr_rel, 30)
+        support_triples = self.get_aug_support(support_triples, curr_rel, self.max_num)
 
         # construct support negative
         support_negative_triples = []
