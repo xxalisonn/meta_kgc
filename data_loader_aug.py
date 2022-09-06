@@ -161,8 +161,6 @@ class DataLoader(object):
         query_triple = [[query_triple]]
         negative_triples = [negative_triples]
 
-        support_triples = self.get_aug_support(support_triples, curr_rel,30)
-
         return (
             [support_triples, support_negative_triples, query_triple, negative_triples],
             curr_rel,
@@ -210,8 +208,6 @@ class DataLoader(object):
         support_negative_triples = [support_negative_triples]
         query_triple = [[query_triple]]
         negative_triples = [negative_triples]
-
-        support_triples = self.get_aug_support(support_triples, curr_rel)
 
         return (
             [support_triples, support_negative_triples, query_triple, negative_triples],
