@@ -140,7 +140,9 @@ class DataLoader(object):
                 #     negative = e1
                 #     break
                 negative = curr_cand[shift]
-                if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                if e1 + rel not in self.e1rel_e2.keys():
+                    break
+                elif (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
                     break
                 else:
                     shift += 1
@@ -189,7 +191,9 @@ class DataLoader(object):
             e1, rel, e2 = triple
             while True:
                 negative = curr_cand[shift]
-                if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                if e1 + rel not in self.e1rel_e2.keys():
+                    break
+                elif (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
                     break
                 else:
                     shift += 1
