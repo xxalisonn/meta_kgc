@@ -64,12 +64,12 @@ def get_params():
     for k, v in vars(args).items():
         params[k] = v
 
-    # if not args.disable_cuda and torch.cuda.is_available():
-    #     params["device"] = torch.device("cuda:" + str(args.device))
-    # else:
-    #     params["device"] = torch.device("cpu")
+    if not args.disable_cuda and torch.cuda.is_available():
+        params["device"] = torch.device("cuda:" + str(args.device))
+    else:
+        params["device"] = torch.device("cpu")
 
-    params["device"] = torch.device("cpu")
+#     params["device"] = torch.device("cpu")
     if params["data_form"] not in ["Pre-Train","In-train"]:
         # RUM is off by default without pre-trained entity embeddings
         params["rum"] = False
