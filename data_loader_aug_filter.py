@@ -1,78 +1,232 @@
-import json
 import random
-import logging
+import numpy as np
 
 
-def train_generate(dataset, batch_size, few, symbol2id, ent2id, e1rel_e2,task_aug,max_num):
-    logging.info('Loading Train Data')
-    train_tasks = json.load(open(dataset + '/train_tasks.json'))
-    logging.info('Loading Candidates')
-    rel2candidates = json.load(open(dataset + '/rel2candidates.json'))
-    task_pool = list(train_tasks.keys())
-    num_tasks = len(task_pool)
+class DataLoader(object):
+    def __init__(self, dataset, parameter, step="train"):
+        self.curr_rel_idx = 0
+        self.tasks = dataset[step + "_tasks"]
+        self.rel2candidates = dataset["rel2candidates"]
+        self.e1rel_e2 = dataset["e1rel_e2"]
+        self.all_rels = sorted(list(self.tasks.keys()))
+        self.num_rels = len(self.all_rels)
+        self.few = parameter["few"]
+        self.bs = parameter["batch_size"]
+        self.nq = parameter["num_query"]
+        self.task_aug = dataset["task_aug_dic"]
+        self.max_num = parameter["aug_max_num"]
 
-    rel_idx = 0
-    while True:
-        if rel_idx % num_tasks == 0:
-            random.shuffle(task_pool)  # shuffle task order
-        task_choice = task_pool[rel_idx % num_tasks]  # choose a rel task
-        rel_idx += 1
-        candidates = rel2candidates[task_choice]
-        if len(candidates) <= 20:
-            continue
-        task_triples = train_tasks[task_choice]
-        random.shuffle(task_triples)
-        # select support set, len = few
-        support_triples = task_triples[:few]
-        support_triples = get_aug_support(task_aug,support_triples,task_choice,max_num)
-        support_pairs = [[symbol2id[triple[0]], symbol2id[triple[2]]] for triple in support_triples]
-        support_left = [ent2id[triple[0]] for triple in support_triples]
-        support_right = [ent2id[triple[2]] for triple in support_triples]
+        if step != "train":
+            self.eval_triples = []
+            for rel in self.all_rels:
+                self.eval_triples.extend(self.tasks[rel][self.few :])
+            self.num_tris = len(self.eval_triples)
+            self.curr_tri_idx = 0
 
-        # select query set, len = batch_size
-        other_triples = task_triples[few:]
-        if len(other_triples) == 0:
-            continue
-        if len(other_triples) < batch_size:
-            query_triples = [random.choice(other_triples) for _ in range(batch_size)]
-        else:
-            query_triples = random.sample(other_triples, batch_size)
+    def get_aug_support(self,support_triples,rel,max_num):
+      if rel in self.task_aug.keys():
+        aug = []
+        for i in range(3):
+            # try:
+            #     test = self.task_aug[rel][str(i + 1)]
+            # except KeyError:
+            #     print(rel)
+            #     print(self.task_aug[rel])
 
-        query_pairs = [[symbol2id[triple[0]], symbol2id[triple[2]]] for triple in query_triples]
-        query_left = [ent2id[triple[0]] for triple in query_triples]
-        query_right = [ent2id[triple[2]] for triple in query_triples]
+            if len(self.task_aug[rel][str(i + 1)]) > 0:
+                aug.append(self.task_aug[rel][str(i + 1)])
 
-        false_pairs = []
-        false_left = []
-        false_right = []
-        for triple in query_triples:
-            e_h = triple[0]
-            rel = triple[1]
-            e_t = triple[2]
+        diminished = [token for st in aug for token in st]
+        if 0 < len(diminished) <= max_num:
+            for item in diminished:
+                support_triples.append([item[0],rel,item[2]])
+        elif len(diminished) > max_num:
+            top_rel = min(len(self.task_aug[rel][str(i + 1)]),max_num)
+            for j in range(top_rel):
+                support_triples.append([diminished[j][0],rel,diminished[j][2]])
+            if max_num > top_rel:
+                num = min(max_num - top_rel,len(diminished))
+                for i in range(num):
+                    item = random.choice(diminished)
+                    support_triples.append([item[0],rel,item[2]])
+
+        return support_triples
+
+    def next_one(self):
+        # shift curr_rel_idx to 0 after one circle of all relations
+        if self.curr_rel_idx % self.num_rels == 0:
+            random.shuffle(self.all_rels)
+            self.curr_rel_idx = 0
+
+        # get current relation and current candidates
+        curr_rel = self.all_rels[self.curr_rel_idx]  # str
+        self.curr_rel_idx = (
+            self.curr_rel_idx + 1
+        ) % self.num_rels  # shift current relation idx to next
+        curr_cand = self.rel2candidates[curr_rel]
+        while (
+            len(curr_cand) <= 10 or len(self.tasks[curr_rel]) <= 10
+        ):  # ignore the small task sets
+            curr_rel = self.all_rels[self.curr_rel_idx]
+            self.curr_rel_idx = (self.curr_rel_idx + 1) % self.num_rels
+            curr_cand = self.rel2candidates[curr_rel]
+
+        # get current tasks by curr_rel from all tasks and shuffle it
+        # self.tasks存储的是所有的train_tasks，curr_task就是把当前关系的训练集全部取出来
+        curr_tasks = self.tasks[curr_rel]
+        # 起点为0，步长为1，终点为curr_tasks的长度，相当于制作一个针对当前关系的自增索引
+        curr_tasks_idx = np.arange(0, len(curr_tasks), 1)
+        # 选了few+num query个三元组
+        curr_tasks_idx = np.random.choice(curr_tasks_idx, self.few + self.nq)
+
+        # support集大小为 few
+        support_triples = [curr_tasks[i] for i in curr_tasks_idx[: self.few]]
+        support_triples = self.get_aug_support(support_triples, curr_rel,self.max_num)
+        # query集大小为 num_query
+        query_triples = [curr_tasks[i] for i in curr_tasks_idx[self.few :]]
+
+        # construct support and query negative triples
+        support_negative_triples = []
+        for triple in support_triples:
+            e1, rel, e2 = triple
+            # for i in range(self.nsn):
             while True:
-                noise = random.choice(candidates)  # select noise from candidates
-                if (noise not in e1rel_e2[e_h + rel]) \
-                        and noise != e_t:
+                negative = random.choice(curr_cand)
+                if e1 + rel not in self.e1rel_e2.keys():
                     break
-            false_pairs.append([symbol2id[e_h], symbol2id[noise]])
-            false_left.append(ent2id[e_h])
-            false_right.append(ent2id[noise])
+                elif (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                    break
+            support_negative_triples.append([e1, rel, negative])
 
-        yield support_pairs, query_pairs, false_pairs, support_left, support_right, query_left, query_right, false_left, false_right
+        negative_triples = []
+        for triple in query_triples:
+            e1, rel, e2 = triple
+            while True:
+                negative = random.choice(curr_cand)
+                if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                    break
+            negative_triples.append([e1, rel, negative])
 
-def get_aug_support(task_aug,support_triples,rel,max_num):
-    head_list = []
-    aug = []
-    for item in support_triples:
-        head = item[0].split(':')
-        head_dom = head[1]
-        if head_dom not in head_list:
-            head_list.append(head_dom)
-            if head_dom in task_aug[rel].keys():
-                aug.append(task_aug[rel][head_dom])
-    diminished = [token for st in aug for token in st]
-    num = min(max_num,len(diminished))
-    for i in range(num):
-        support_triples.append(random.choice(diminished))
+        # support_triples = self.get_aug_support(support_triples,curr_rel)
 
-    return support_triples
+        return (
+            support_triples,
+            support_negative_triples,
+            query_triples,
+            negative_triples,
+            curr_rel,
+        )
+
+
+
+    def next_batch(self):
+        next_batch_all = [self.next_one() for _ in range(self.bs)]
+
+        support, support_negative, query, negative, curr_rel = zip(
+            *next_batch_all
+        )  # 加*号的是解封装
+        # print(len(curr_rel))
+        # for r in curr_rel:
+        #     if len(r)==1:
+        #         print(r)
+        return [support, support_negative, query, negative], curr_rel
+
+    def next_one_on_eval(self):
+        if self.curr_tri_idx == self.num_tris:
+            return "EOT", "EOT"
+
+        # get current triple
+        query_triple = self.eval_triples[self.curr_tri_idx]
+        self.curr_tri_idx += 1
+        curr_rel = query_triple[1]
+        curr_cand = self.rel2candidates[curr_rel]
+        curr_task = self.tasks[curr_rel]
+
+        # get support triples
+        support_triples = curr_task[: self.few]
+        support_triples = self.get_aug_support(support_triples, curr_rel,self.max_num)
+
+        # construct support negative
+        support_negative_triples = []
+        shift = 0
+        for triple in support_triples:
+            e1, rel, e2 = triple
+            # for i in range(self.nsn):
+            while True:
+                # if shift == len(curr_cand):
+                #     negative = e1
+                #     break
+                negative = curr_cand[shift]
+                if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                    break
+                else:
+                    shift += 1
+            support_negative_triples.append([e1, rel, negative])
+
+        # construct negative triples
+        negative_triples = []
+        e1, rel, e2 = query_triple
+        for negative in curr_cand:
+            if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                negative_triples.append([e1, rel, negative])
+        if len(negative_triples) == 0:
+            negative_triples.append([e1, rel, e1])
+        support_triples = [support_triples]
+        support_negative_triples = [support_negative_triples]
+        query_triple = [[query_triple]]
+        negative_triples = [negative_triples]
+
+        support_triples = self.get_aug_support(support_triples, curr_rel)
+
+        return (
+            [support_triples, support_negative_triples, query_triple, negative_triples],
+            curr_rel,
+        )
+
+    def next_one_on_eval_by_relation(self, curr_rel):
+        if self.curr_tri_idx == len(self.tasks[curr_rel][self.few :]):
+            self.curr_tri_idx = 0
+            return "EOT", "EOT"
+
+        # get current triple
+        query_triple = self.tasks[curr_rel][self.few :][self.curr_tri_idx]
+        self.curr_tri_idx += 1
+        # curr_rel = query_triple[1]
+        curr_cand = self.rel2candidates[curr_rel]
+        curr_task = self.tasks[curr_rel]
+
+        # get support triples
+        support_triples = curr_task[: self.few]
+        support_triples = self.get_aug_support(support_triples, curr_rel, self.max_num)
+
+        # construct support negative
+        support_negative_triples = []
+        shift = 0
+        for triple in support_triples:
+            e1, rel, e2 = triple
+            while True:
+                negative = curr_cand[shift]
+                if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                    break
+                else:
+                    shift += 1
+            support_negative_triples.append([e1, rel, negative])
+
+        # construct negative triples
+        negative_triples = []
+        e1, rel, e2 = query_triple
+        for negative in curr_cand:
+            if (negative not in self.e1rel_e2[e1 + rel]) and negative != e2:
+                negative_triples.append([e1, rel, negative])
+
+        support_triples = [support_triples]
+        support_negative_triples = [support_negative_triples]
+        query_triple = [[query_triple]]
+        negative_triples = [negative_triples]
+
+        support_triples = self.get_aug_support(support_triples, curr_rel)
+
+        return (
+            [support_triples, support_negative_triples, query_triple, negative_triples],
+            curr_rel,
+        )
