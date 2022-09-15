@@ -1,5 +1,5 @@
 from torch.nn import parameter
-from models_aug_filter import *
+from model_aug_filter import *
 from tensorboardX import SummaryWriter
 import os
 import sys
