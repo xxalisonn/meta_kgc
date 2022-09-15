@@ -1,4 +1,4 @@
-from trainer import *
+from trainer_aug_filter import *
 from params_aug_filter import *
 from data_loader_aug_filter import *
 import json
