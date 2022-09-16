@@ -13,7 +13,7 @@ def get_params():
     )
     args.add_argument(
         "-form", "--data_form", default="Pre-Train", type=str,choices=["Pre-Train", "In-Train", "Discard"])
-    args.add_argument("-seed", "--seed", default=None, type=int)
+    args.add_argument("-seed", "--seed", default='19950922', type=int)
     args.add_argument("-few", "--few", default=1, type=int)
     args.add_argument("-nq", "--num_query", default=3, type=int)
     args.add_argument(
