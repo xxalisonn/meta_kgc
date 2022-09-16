@@ -21,10 +21,12 @@ if __name__ == "__main__":
         SEED = params["seed"]
         torch.manual_seed(SEED)
         torch.cuda.manual_seed(SEED)
+        os.environ['PYTHONHASHSEED'] = str(seed)
         torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         np.random.seed(SEED)
         random.seed(SEED)
-
+        
     # select the dataset
     for k, v in data_dir.items():
         data_dir[k] = params["data_path"] + v
